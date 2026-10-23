@@ -1,0 +1,9 @@
+# Normalize text line endings; binary assets and build output stay untouched
+* text=auto
+*.png binary
+*.wav binary
+*.ogg binary
+*.mp3 binary
+*.ttf binary
+*.wasm binary
+*.data binary

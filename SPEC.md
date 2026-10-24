@@ -4,7 +4,7 @@ Status: ready-for-agent. Visual direction approved by the client: **Red Alert v2
 
 ## Problem Statement
 
-The client (a 1st or 2nd year student) has a working console game, `reference/original_main.cpp`: a turn-based duel between your ship and an enemy ship, played by typing 1 to 4 into a terminal. It must be turned into a game people play in a web browser, with a polished, premium interface. Her requirements:
+The client has a working console game, `reference/original_main.cpp`: a turn-based duel between your ship and an enemy ship, played by typing 1 to 4 into a terminal. It must be turned into a game people play in a web browser, with a polished, premium interface. Her requirements:
 
 - The whole game is written in C++. The only non-C++ file allowed is the small HTML loader that Emscripten generates.
 - It runs as a website (a link), and also works on a phone.

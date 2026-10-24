@@ -1,0 +1,41 @@
+{
+    // Terminal > Run Task... lists these. Ctrl+Shift+B runs build-desktop.
+    // Each task runs a Makefile target with w64devkit's make and g++ on the PATH.
+    "version": "2.0.0",
+    "options": {
+        "env": { "PATH": "C:/raylib/w64devkit/bin;${env:PATH}" }
+    },
+    "tasks": [
+        {
+            "label": "build-desktop",
+            "type": "process",
+            "command": "make",
+            "args": ["desktop"],
+            "group": { "kind": "build", "isDefault": true },
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "run-desktop",
+            "type": "process",
+            "command": "make",
+            "args": ["run"],
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "build-web",
+            "type": "process",
+            "command": "make",
+            "args": ["web"],
+            "group": "build",
+            "problemMatcher": "$gcc"
+        },
+        {
+            "label": "test",
+            "type": "process",
+            "command": "make",
+            "args": ["test"],
+            "group": { "kind": "test", "isDefault": true },
+            "problemMatcher": "$gcc"
+        }
+    ]
+}

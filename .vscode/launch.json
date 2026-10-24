@@ -1,0 +1,16 @@
+{
+    // F5 builds the desktop game and starts it.
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Run Space Battle (desktop)",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/bin/space-battle.exe",
+            "cwd": "${workspaceFolder}",
+            "MIMode": "gdb",
+            "miDebuggerPath": "C:/raylib/w64devkit/bin/gdb.exe",
+            "preLaunchTask": "build-desktop"
+        }
+    ]
+}

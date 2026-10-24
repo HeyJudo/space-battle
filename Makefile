@@ -17,7 +17,7 @@ SOURCES  = $(wildcard src/*.cpp)
 # The logic files are the only ones the tests compile: they never touch raylib.
 LOGIC    = src/battle.cpp
 
-.PHONY: test desktop web run
+.PHONY: test desktop web run shots
 
 test:
 	@mkdir -p bin
@@ -34,11 +34,17 @@ desktop:
 run: desktop
 	./bin/space-battle.exe
 
-# emcc is the Emscripten compiler: same C++, but the output is WebAssembly.
+# Saves a PNG of every screen into build/shots/, to compare with docs/design/.
+shots:
+	@mkdir -p bin
+	$(CXX) $(CXXFLAGS) $(filter-out src/main.cpp,$(SOURCES)) tools/screenshots.cpp -Isrc 		-I$(RAYLIB)/include -L$(RAYLIB)/lib -lraylib -lopengl32 -lgdi32 -lwinmm -static -o bin/screenshots.exe
+	./bin/screenshots.exe
+
+# em++ is the Emscripten C++ compiler: same C++, but the output is WebAssembly.
 #   -sUSE_GLFW=3          raylib's window layer in the browser
 #   --preload-file assets packs the assets folder into index.data
 #   --shell-file          our own minimal page instead of Emscripten's default one
-EMCC = $(EMSDK)/upstream/emscripten/emcc
+EMCC = $(EMSDK)/upstream/emscripten/em++
 EMENV = EMSDK=$(EMSDK) EMSDK_PYTHON=$(wildcard $(EMSDK)/python/*/python.exe) \
 	EMSDK_NODE=$(wildcard $(EMSDK)/node/*/bin/node.exe)
 

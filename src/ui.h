@@ -49,14 +49,18 @@ void OutlineChamfer(Rectangle r, float cut, Color color);
 // A filled ellipse that fades from "inner" at the focus point to "outer" at the edge.
 void FillEllipseGradient(Vector2 center, float rx, float ry, Vector2 focus, Color inner, Color outer);
 
+// A triangle that fades from "inner" at the first corner to "outer" at the far edge.
+void FillTriangleFade(Vector2 corner, Vector2 b, Vector2 c, Color inner, Color outer);
+
 // ---------- Panels ----------
 
 enum class PanelTone { Amber, Red };
 
 // The main cut-corner panel with a glowing gradient border.
 // If title is not null, a header strip is drawn with "> TITLE" and the right label.
-void DrawPanel(Rectangle r, const char* title, const char* rightLabel, PanelTone tone = PanelTone::Amber);
 const float PANEL_HEADER_H = 38.0f;
+void DrawPanel(Rectangle r, const char* title, const char* rightLabel, PanelTone tone = PanelTone::Amber,
+               float headerHeight = PANEL_HEADER_H);
 
 // Small amber corner marks (top right and bottom left).
 void DrawCornerTicks(Rectangle r);
@@ -79,7 +83,8 @@ struct Button {
     const char* hint;      // small text under the label, or nullptr
     const char* key;       // keyboard shortcut box on the right, or nullptr
     Icon icon;             // Icon::None means no icon socket
-    bool primary;          // the solid amber "go" style with a pulsing glow
+    bool primary;          // the solid amber "go" style
+    bool glow;             // a pulsing glow around it (primary buttons on menus)
     bool centered;         // label centered (used by small dialog buttons)
     bool hovered;
     float hoverTime;       // seconds since the mouse arrived, for the light sheen
@@ -119,3 +124,9 @@ void DrawHazardTape(float y, float height, bool red, float alpha, float t, bool 
 
 // A ship sprite rotated 90 degrees so the ships face each other.
 void DrawShip(Texture2D ship, Vector2 center, float width, float rotation, Color tint);
+
+// A flickering engine flame. "nozzle" is the hot end; the flame trails away from it.
+void DrawFlame(Vector2 nozzle, float length, float height, bool trailsLeft, float t, bool animate);
+
+// A soft round glow, used behind ships.
+void DrawGlow(Vector2 center, float radius, Color color);

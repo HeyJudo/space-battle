@@ -1,6 +1,7 @@
 // viewport.cpp - draws the game at 1280x720 and scales it to any window size.
 #include "viewport.h"
 #include "constants.h"
+#include "rlgl.h"
 
 // A RenderTexture2D is a picture we can draw into instead of the window.
 static RenderTexture2D target;
@@ -42,7 +43,13 @@ void PresentVirtual() {
     // Render textures are stored upside down in OpenGL, so the source height is negative.
     Rectangle source = { 0, 0, (float)VIRTUAL_W, -(float)VIRTUAL_H };
     Rectangle dest = { o.x, o.y, VIRTUAL_W * s, VIRTUAL_H * s };
+    // Copy the colors straight across and ignore the texture's transparency:
+    // see-through effects drawn into it lowered its alpha, which would let
+    // the black window show through.
+    rlSetBlendFactorsSeparate(RL_ONE, RL_ZERO, RL_ZERO, RL_ONE, RL_FUNC_ADD, RL_FUNC_ADD);
+    BeginBlendMode(BLEND_CUSTOM_SEPARATE);
     DrawTexturePro(target.texture, source, dest, { 0, 0 }, 0.0f, WHITE);
+    EndBlendMode();
 }
 
 Vector2 VirtualMouse() {

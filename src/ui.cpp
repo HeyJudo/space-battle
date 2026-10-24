@@ -45,12 +45,13 @@ bool Blink(float t, float period) {
 
 // ---------- Text ----------
 
+// y is the top of the text line (at the font's normal line height).
 void DrawLabel(FontKind kind, const char* text, float x, float y, float size, float spacingEm, Color color) {
-    DrawTextEx(GetFont(kind, size), text, { x, y }, size, size * spacingEm, color);
+    DrawTextEx(GetFont(kind, size), text, { x, y }, size * FontScale(kind), size * spacingEm, color);
 }
 
 float MeasureLabel(FontKind kind, const char* text, float size, float spacingEm) {
-    return MeasureTextEx(GetFont(kind, size), text, size, size * spacingEm).x;
+    return MeasureTextEx(GetFont(kind, size), text, size * FontScale(kind), size * spacingEm).x;
 }
 
 void DrawLabelRight(FontKind kind, const char* text, float rightX, float y, float size, float spacingEm, Color color) {
@@ -154,6 +155,18 @@ void FillEllipseGradient(Vector2 center, float rx, float ry, Vector2 focus, Colo
     rlSetTexture(0);
 }
 
+void FillTriangleFade(Vector2 corner, Vector2 b, Vector2 c, Color inner, Color outer) {
+    rlSetTexture(rlGetTextureIdDefault());
+    rlBegin(RL_TRIANGLES);
+    rlColor4ub(inner.r, inner.g, inner.b, inner.a);
+    rlVertex2f(corner.x, corner.y);
+    rlColor4ub(outer.r, outer.g, outer.b, outer.a);
+    rlVertex2f(b.x, b.y);
+    rlVertex2f(c.x, c.y);
+    rlEnd();
+    rlSetTexture(0);
+}
+
 // ---------- Panels ----------
 
 // The panel border glows bright at the top-left and bottom-right corners and
@@ -185,7 +198,7 @@ static void GradientChamferBorder(Rectangle r, float cut, unsigned int hex) {
     }
 }
 
-void DrawPanel(Rectangle r, const char* title, const char* rightLabel, PanelTone tone) {
+void DrawPanel(Rectangle r, const char* title, const char* rightLabel, PanelTone tone, float headerHeight) {
     const float CUT = 16;
     unsigned int edge = (tone == PanelTone::Red) ? COL_RED : COL_AMBER;
     FillChamfer(r, CUT, Col(COL_PANEL_TOP, 0.95f), Col(COL_PANEL_BOTTOM, 0.96f));
@@ -196,16 +209,16 @@ void DrawPanel(Rectangle r, const char* title, const char* rightLabel, PanelTone
     if (title == nullptr)
         return;
     // Header strip: a glow that fades out to the right, with a line under it.
-    float h = PANEL_HEADER_H;
+    float h = headerHeight;
     float fadeEnd = r.x + r.width * 0.8f;
     Vector2 strip[5] = { { r.x + CUT, r.y + 1 }, { fadeEnd, r.y + 1 }, { fadeEnd, r.y + h }, { r.x + 1, r.y + h }, { r.x + 1, r.y + CUT } };
     FillPolygonLinear(strip, 5, { r.x, r.y }, { fadeEnd, r.y }, Col(edge, 0.16f), Col(edge, 0.0f));
     DrawRectangle((int)r.x + 1, (int)(r.y + h), (int)r.width - 2, 1, Col(edge, tone == PanelTone::Red ? 0.25f : 0.2f));
 
     Color titleColor = (tone == PanelTone::Red) ? Col(COL_RED_SOFT) : Col(COL_AMBER);
-    DrawLabel(FontKind::Mono, TextFormat("> %s", title), r.x + 20, r.y + 12, 13, 0.18f, titleColor);
+    DrawLabel(FontKind::Mono, TextFormat("> %s", title), r.x + 20, r.y + h / 2 - 8, 13, 0.18f, titleColor);
     if (rightLabel != nullptr)
-        DrawLabelRight(FontKind::Mono, rightLabel, r.x + r.width - 20, r.y + 12, 13, 0.18f, Col(COL_DIM));
+        DrawLabelRight(FontKind::Mono, rightLabel, r.x + r.width - 20, r.y + h / 2 - 8, 13, 0.18f, Col(COL_DIM));
 }
 
 void DrawCornerTicks(Rectangle r) {
@@ -318,6 +331,7 @@ Button MakeButton(Rectangle rect, const char* label, const char* hint, const cha
     b.key = key;
     b.icon = icon;
     b.primary = primary;
+    b.glow = primary;
     b.centered = false;
     b.hovered = false;
     b.hoverTime = 10.0f;
@@ -350,8 +364,10 @@ static void DrawSheen(Rectangle r, float progress) {
     float mid = left + bandW / 2;
     Vector2 leftHalf[4] = { { left + lean, r.y }, { mid + lean, r.y }, { mid - lean, r.y + r.height }, { left - lean, r.y + r.height } };
     Vector2 rightHalf[4] = { { mid + lean, r.y }, { left + bandW + lean, r.y }, { left + bandW - lean, r.y + r.height }, { mid - lean, r.y + r.height } };
-    // BeginScissorMode clips drawing to the button's rectangle.
-    BeginScissorMode((int)r.x, (int)r.y, (int)r.width, (int)r.height);
+    // BeginScissorMode clips drawing to a rectangle: here the button minus
+    // its cut corners, so the sheen never spills outside the button.
+    const float CUT = 10;
+    BeginScissorMode((int)(r.x + CUT), (int)r.y, (int)(r.width - 2 * CUT), (int)r.height);
     FillPolygonLinear(leftHalf, 4, { left - lean, 0 }, { mid - lean, 0 }, clear, bright);
     FillPolygonLinear(rightHalf, 4, { mid - lean, 0 }, { left + bandW - lean, 0 }, bright, clear);
     EndScissorMode();
@@ -366,11 +382,11 @@ void DrawButton(const Button& button, bool enabled, float t) {
 
     if (button.primary) {
         // Pulsing amber glow: soft outlines that grow outward and fade.
-        float strength = enabled ? 1.0f - 0.6f * Pulse(t, 2.4f) : 0.0f;
-        for (int i = 1; i <= 7; i++) {
-            float g = i * 2.0f;
-            Rectangle grown = { r.x - g, r.y - g, r.width + 2 * g, r.height + 2 * g };
-            OutlineChamfer(grown, CUT + g * 0.41f, Col(COL_AMBER, 0.2f * strength * (1.0f - i / 8.0f)));
+        float strength = (enabled && button.glow) ? 1.0f - 0.6f * Pulse(t, 2.4f) : 0.0f;
+        for (int i = 1; i <= 14 && strength > 0; i++) {
+            float k = 1.0f - i / 15.0f;
+            Rectangle grown = { r.x - i, r.y - i, r.width + 2.0f * i, r.height + 2.0f * i };
+            OutlineChamfer(grown, CUT + i * 0.41f, Col(COL_AMBER, 0.13f * strength * k * k));
         }
         if (button.hovered)
             FillChamfer(r, CUT, Rgba(255, 208, 138, 1), Rgba(247, 169, 64, 1));
@@ -402,7 +418,7 @@ void DrawButton(const Button& button, bool enabled, float t) {
     }
 
     // Icon socket on the left.
-    float textX = r.x + 18;
+    float textX = r.x + 21;
     if (button.icon != Icon::None) {
         Rectangle socket = { r.x + 7, r.y + (r.height - 48) / 2, 48, 48 };
         if (button.primary) {
@@ -421,12 +437,12 @@ void DrawButton(const Button& button, bool enabled, float t) {
     Color hintColor = button.primary ? Rgba(91, 58, 18, 1) : Col(COL_DIM);
     float centerY = r.y + r.height / 2;
     if (button.centered) {
-        DrawLabelCentered(FontKind::Display, button.label, r.x + r.width / 2, centerY - 12, 22, 0.1f, labelColor);
+        DrawLabelCentered(FontKind::Display, button.label, r.x + r.width / 2, centerY - 13, 22, 0.1f, labelColor);
     } else if (button.hint != nullptr) {
-        DrawLabel(FontKind::Display, button.label, textX, centerY - 20, 22, 0.1f, labelColor);
-        DrawLabel(FontKind::Mono, button.hint, textX, centerY + 6, 12, 0.08f, hintColor);
+        DrawLabel(FontKind::Display, button.label, textX, centerY - 22, 22, 0.1f, labelColor);
+        DrawLabel(FontKind::Mono, button.hint, textX, centerY + 7, 12, 0.08f, hintColor);
     } else {
-        DrawLabel(FontKind::Display, button.label, textX, centerY - 12, 22, 0.1f, labelColor);
+        DrawLabel(FontKind::Display, button.label, textX, centerY - 13, 22, 0.1f, labelColor);
     }
 
     if (button.key != nullptr) {
@@ -574,4 +590,24 @@ void DrawShip(Texture2D ship, Vector2 center, float width, float rotation, Color
     Rectangle dest = { center.x, center.y, ship.width * scale, ship.height * scale };
     Vector2 origin = { dest.width / 2, dest.height / 2 };  // spin around the middle
     DrawTexturePro(ship, source, dest, origin, 90.0f + rotation, tint);
+}
+
+void DrawFlame(Vector2 nozzle, float length, float height, bool trailsLeft, float t, bool animate) {
+    // The flame flickers between full and 82% length many times a second.
+    bool shortFrame = animate && Blink(t, 0.09f);
+    float len = shortFrame ? length * 0.82f : length;
+    float alpha = shortFrame ? 0.85f : 1.0f;
+    float dir = trailsLeft ? -1.0f : 1.0f;
+    Vector2 outerCenter = { nozzle.x + dir * len / 2, nozzle.y };
+    Vector2 innerCenter = { nozzle.x + dir * len * 0.2f, nozzle.y };
+    Vector2 midCenter = { nozzle.x + dir * len * 0.3f, nozzle.y };
+    FillEllipseGradient(outerCenter, len / 2, height / 2, nozzle, Rgba(255, 110, 40, 0.9f * alpha), Rgba(255, 110, 40, 0));
+    FillEllipseGradient(midCenter, len * 0.32f, height * 0.4f, nozzle, Rgba(255, 207, 122, alpha), Rgba(255, 150, 70, 0));
+    FillEllipseGradient(innerCenter, len * 0.18f, height * 0.26f, nozzle, Rgba(255, 248, 230, alpha), Rgba(255, 220, 160, 0));
+}
+
+void DrawGlow(Vector2 center, float radius, Color color) {
+    Color clear = color;
+    clear.a = 0;
+    DrawCircleGradient((int)center.x, (int)center.y, radius, color, clear);
 }

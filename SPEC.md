@@ -185,4 +185,12 @@ The approved look is in `docs/design/*.png`: title, battle, howto, settings, vic
 - **Expect a tougher enemy:** with the approved enemy shields, the Warden is noticeably tougher. In random-play simulation the win rate dropped to about 27%. If she asks for an easier game, tune it with constants, not rule changes.
 - **Loading the web build:** browsers block WebAssembly from `file://`, so the web build has to be served (Live Server or GitHub Pages). Put that in the README.
 - **Credits:** list them on the How to Play screen or in the README: Kenney (CC0), Rajdhani and Share Tech Mono (OFL), and the music source.
+- **Decisions made while building:**
+  - Settings has a third row, Reduce motion (ON / OFF), below the two audio rows shown in `docs/design/settings.png`.
+  - The debrief header reads "AFTER ACTION" where the mockups said "SAMPLE NUMBERS".
+  - In the Retreat dialog, Esc means Stay, and Enter or 4 means Retreat.
+  - The feed's speaker icon switches sound effects and music on or off together.
+  - Music is a quiet drone generated in code (`src/audio.cpp`), since no CC0 loop was picked.
+  - "Damage dealt" adds up each Fire's rolled damage, including a final shot that overshoots 0.
+  - The randomized test plays a random player that picks Fire 60% of the time. With equal odds, both ships out-repair the damage and a game can run for thousands of rounds. That player wins about 70% of games.
 - **No issue tracker:** this spec lives in the repo. Run `/setup-matt-pocock-skills` to publish it to a tracker.

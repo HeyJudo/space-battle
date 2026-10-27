@@ -4,6 +4,7 @@
 // (shot fired, shot lands, Warden targets, Warden acts, round ends). Each step
 // turns the rule events into animations, sounds and tactical feed lines.
 #include "raylib.h"
+#include "rlgl.h"
 #include "audio.h"
 #include "background.h"
 #include "battle.h"
@@ -77,6 +78,7 @@ const float NEVER = 99.0f;
 static float playerHitAge, wardenHitAge, playerHealAge, wardenHealAge;
 static float playerBeamAge, wardenBeamAge, playerDeadAge, wardenDeadAge, shakeAge;
 static float shakeStrength;
+static Vector2 burstAt;  // where a ship blew up, for the bright burst
 
 static bool confirmOpen;
 static float confirmAge;
@@ -86,6 +88,52 @@ static const Rectangle MUTE_RECT = { 1206, 548, 34, 26 };
 // Ship positions (centers) in 1280x720 space.
 static const Vector2 HALBERD_POS = { 270, 330 };
 static const Vector2 WARDEN_POS = { 1010, 330 };
+
+// ---------- Ship position ----------
+// Every effect attached to a ship (flame, glow, shield, beam, numbers, brackets,
+// sparks) asks ShipPos each frame, so they all follow the ship as it moves.
+
+// How far through its figure-eight a ship is, as an angle in radians.
+static float DriftAngle(bool warden, float now) {
+    float period = warden ? WARDEN_DRIFT_PERIOD : HALBERD_DRIFT_PERIOD;
+    float t = now + (warden ? WARDEN_PHASE : 0.0f);
+    return 2.0f * PI * t / period;
+}
+
+// 0 to 1 and back to 0 while a ship lunges. Starts and ends at rest, so it blends into the drift.
+static float LungeAmount(float age) {
+    if (age >= LUNGE_TIME) return 0.0f;
+    if (age < LUNGE_PEAK_TIME) {
+        float inv = 1.0f - age / LUNGE_PEAK_TIME;
+        return 1.0f - inv * inv * inv;  // fast start, gentle stop
+    }
+    float u = (age - LUNGE_PEAK_TIME) / (LUNGE_TIME - LUNGE_PEAK_TIME);
+    return 1.0f - u * u * (3.0f - 2.0f * u);  // "smoothstep": slow start, slow finish
+}
+
+// The ship's center right now: home + drift + lunge + recoil.
+static Vector2 ShipPos(bool warden, float now) {
+    Vector2 home = warden ? WARDEN_POS : HALBERD_POS;
+    if (settings.reduceMotion)  // only the gentle bob
+        return { home.x, home.y - BOB_PX * Pulse(now + (warden ? WARDEN_PHASE : 0.0f), BOB_PERIOD) };
+
+    float angle = DriftAngle(warden, now);
+    float forward = warden ? -1.0f : 1.0f;  // +1 means toward the enemy on screen
+    float beamAge = warden ? wardenBeamAge : playerBeamAge;
+    float hitAge = warden ? wardenHitAge : playerHitAge;
+    float recoil = (hitAge < RECOIL_TIME) ? Pulse(hitAge, RECOIL_TIME) : 0.0f;  // out and back
+
+    // sin(2a) against sin(a) draws a figure-eight.
+    float x = home.x + DRIFT_X * sinf(2.0f * angle) + forward * (LUNGE_PX * LungeAmount(beamAge) - RECOIL_PX * recoil);
+    float y = home.y + DRIFT_Y * sinf(angle);
+    return { x, y };
+}
+
+// A slight roll that follows the up and down motion, like riding a swell.
+static float ShipTilt(bool warden, float now) {
+    if (settings.reduceMotion) return 0.0f;
+    return (warden ? -1.0f : 1.0f) * TILT_DEGREES * cosf(DriftAngle(warden, now));
+}
 
 // ---------- Small helpers ----------
 
@@ -100,6 +148,7 @@ static void AddFloat(bool onWarden, const char* text, unsigned int color, bool s
 }
 
 static void Explode(Vector2 at) {
+    burstAt = at;
     for (int i = 0; i < 46; i++) {
         float angle = GetRandomValue(0, 359) * DEG2RAD;
         float speed = (float)GetRandomValue(60, 340);
@@ -189,7 +238,7 @@ static void ShowEvents(const std::vector<Event>& events) {
                 wardenDeadAge = 0.0f;
                 wardenBubble = false;
                 phase = Phase::StandDown;
-                Explode(WARDEN_POS);
+                Explode(ShipPos(true, (float)GetTime()));
                 Shake(12.0f);
                 PlaySfx(Sfx::Explosion);
                 break;
@@ -197,7 +246,7 @@ static void ShowEvents(const std::vector<Event>& events) {
                 playerDeadAge = 0.0f;
                 playerBubble = false;
                 phase = Phase::StandDown;
-                Explode(HALBERD_POS);
+                Explode(ShipPos(false, (float)GetTime()));
                 Shake(14.0f);
                 PlaySfx(Sfx::Explosion);
                 break;
@@ -458,16 +507,16 @@ static Vector2 HitOffset(float age) {
 
 static void DrawShipWithEffects(bool warden, float now) {
     Texture2D sprite = warden ? assets.warden : assets.halberd;
-    Vector2 home = warden ? WARDEN_POS : HALBERD_POS;
     float hitAge = warden ? wardenHitAge : playerHitAge;
     float healAge = warden ? wardenHealAge : playerHealAge;
     float deadAge = warden ? wardenDeadAge : playerDeadAge;
     bool motion = !settings.reduceMotion;
 
-    // Gentle bobbing; the Warden bobs half a cycle later.
-    float bob = motion ? -8 * Pulse(now + (warden ? 2.3f : 0.0f), 4.6f) : 0;
+    // ShipPos holds the slow drift, lunge and recoil (or just the gentle bob with Reduce motion).
+    Vector2 center = ShipPos(warden, now);
     Vector2 shake = HitOffset(hitAge);
-    Vector2 pos = { home.x + shake.x, home.y + bob + shake.y };
+    Vector2 pos = { center.x + shake.x, center.y + shake.y };
+    float tilt = ShipTilt(warden, now);
 
     // Destroyed: flash, grow, spin a little and fade away.
     float scale = 1.0f, spin = 0.0f, alpha = 1.0f;
@@ -488,7 +537,7 @@ static void DrawShipWithEffects(bool warden, float now) {
         DrawFlame({ pos.x + 58, pos.y + 10 }, 44, 16, false, now, motion);
     else
         DrawFlame({ pos.x - 58, pos.y + 17 }, 70, 22, true, now, motion);
-    DrawShip(sprite, pos, 150 * scale, spin, Col(0xFFFFFFFF, alpha));
+    DrawShip(sprite, pos, 150 * scale, spin + tilt, Col(0xFFFFFFFF, alpha));
 
     // Bright flash: draw the ship again with additive blending, which brightens it.
     float flash = 0.0f;
@@ -498,7 +547,7 @@ static void DrawShipWithEffects(bool warden, float now) {
     if (flash > 0) {
         BeginBlendMode(BLEND_ADDITIVE);
         Color tint = (healAge < 0.8f) ? Col(COL_GREEN, flash) : Col(0xFFD8A0FF, flash);
-        DrawShip(sprite, pos, 150 * scale, spin, tint);
+        DrawShip(sprite, pos, 150 * scale, spin + tilt, tint);
         EndBlendMode();
     }
 
@@ -510,42 +559,55 @@ static void DrawShipWithEffects(bool warden, float now) {
         float size = 210 * (0.5f + 0.5f * pop);
         Color tint = warden ? Col(COL_RED, 0.85f * pop) : Col(COL_AMBER, 0.85f * pop);
         Rectangle source = { 0, 0, (float)assets.shield.width, (float)assets.shield.height };
-        DrawTexturePro(assets.shield, source, { home.x, home.y + bob, size, size }, { size / 2, size / 2 }, warden ? -90.0f : 90.0f, tint);
+        DrawTexturePro(assets.shield, source, { center.x, center.y, size, size }, { size / 2, size / 2 }, warden ? -90.0f : 90.0f, tint);
     }
 }
 
-// Beams: shoot across in 0.2 s, then fade while getting thicker. Drawn in 6 choppy steps.
-static void DrawBeam(float age, bool fromWarden) {
-    if (age >= 0.4f) return;
-    float p = floorf(age / 0.4f * 6) / 6;
-    float reach = (p < 0.5f) ? p / 0.5f : 1.0f;
-    float alpha = (p < 0.5f) ? 1.0f : 1.0f - (p - 0.5f) / 0.5f;
-    float thick = (p < 0.5f) ? 4 : 4 + 6 * (p - 0.5f) / 0.5f;
-    float length = 560 * reach;
-    float y = 330 - thick / 2;
+// Beams: shoot across in 0.1 s, then fade for 0.2 s while getting thicker. Drawn in 6 choppy steps.
+// The two ships drift, so the beam runs from the gun to wherever the target is now, tilted to match.
+static void DrawBeam(float age, bool fromWarden, float now) {
+    if (age >= BEAM_LIFE) return;
+    float crossFrac = BEAM_CROSS_TIME / BEAM_LIFE;
+    float p = floorf(age / BEAM_LIFE * 6) / 6;
+    float reach = (p < crossFrac) ? p / crossFrac : 1.0f;
+    float alpha = (p < crossFrac) ? 1.0f : 1.0f - (p - crossFrac) / (1.0f - crossFrac);
+    float thick = (p < crossFrac) ? 4 : 4 + 6 * (p - crossFrac) / (1.0f - crossFrac);
+
+    // The gun is 90 px in front of the shooter; the beam ends 90 px in front of the target.
+    float forward = fromWarden ? -1.0f : 1.0f;
+    Vector2 shooter = ShipPos(fromWarden, now);
+    Vector2 target = ShipPos(!fromWarden, now);
+    Vector2 start = { shooter.x + forward * 90, shooter.y };
+    Vector2 end = { target.x - forward * 90, target.y };
+    float length = sqrtf((end.x - start.x) * (end.x - start.x) + (end.y - start.y) * (end.y - start.y)) * reach;
+    float degrees = atan2f(end.y - start.y, end.x - start.x) * RAD2DEG;
+
     unsigned int color = fromWarden ? COL_RED : COL_AMBER;
     Color hot = fromWarden ? Col(0xFFE0D8FF, alpha) : Col(0xFFF6E0FF, alpha);
-    float x = fromWarden ? 920 - length : 360;
-    // Glow, then the core: fading in from the gun end, hottest at the tip.
-    DrawRectangleRec({ x, y - 6, length, thick + 12 }, Col(color, 0.18f * alpha));
+    float y = -thick / 2;
     float fadeIn = length * 0.15f;
-    if (!fromWarden) {
-        DrawRectangleGradientH((int)x, (int)y, (int)fadeIn, (int)thick, Col(color, 0), Col(color, alpha));
-        DrawRectangleGradientH((int)(x + fadeIn), (int)y, (int)(length - fadeIn), (int)thick, Col(color, alpha), hot);
-    } else {
-        DrawRectangleGradientH((int)x, (int)y, (int)(length - fadeIn), (int)thick, hot, Col(color, alpha));
-        DrawRectangleGradientH((int)(x + length - fadeIn), (int)y, (int)fadeIn, (int)thick, Col(color, alpha), Col(color, 0));
-    }
+
+    // rlgl is raylib's low-level layer. Push/Translate/Rotate move and turn the drawing
+    // grid, so we can draw a flat beam from (0, 0) and it lands tilted at the gun.
+    rlPushMatrix();
+    rlTranslatef(start.x, start.y, 0);
+    rlRotatef(degrees, 0, 0, 1);
+    // Glow, then the core: fading in from the gun end, hottest at the tip.
+    DrawRectangleRec({ 0, y - 6, length, thick + 12 }, Col(color, 0.18f * alpha));
+    DrawRectangleGradientH(0, (int)y, (int)fadeIn, (int)thick, Col(color, 0), Col(color, alpha));
+    DrawRectangleGradientH((int)fadeIn, (int)y, (int)(length - fadeIn), (int)thick, Col(color, alpha), hot);
+    rlPopMatrix();
 }
 
-static void DrawFloats() {
+static void DrawFloats(float now) {
     int smallCount[2] = { 0, 0 };
     for (const FloatingText& f : floats) {
         float p = f.age / 1.2f;
         float alpha = (p < 0.15f) ? p / 0.15f : 1.0f - (p - 0.15f) / 0.85f;
         float rise = 10 - 80 * p;  // from 10 px below the start to 70 px above
-        float x = f.onWarden ? WARDEN_POS.x : HALBERD_POS.x;
-        float y = 226 + rise;
+        Vector2 ship = ShipPos(f.onWarden, now);
+        float x = ship.x;
+        float y = ship.y - 104 + rise;
         if (f.small) {
             y += 46 + 18 * smallCount[f.onWarden ? 1 : 0]++;
             DrawLabelCentered(FontKind::Mono, f.text.c_str(), x + 1, y + 2, 16, 0.2f, Col(0x000000FF, alpha));
@@ -565,9 +627,8 @@ static void DrawParticles() {
     // A bright burst right where the ship blew up.
     float deadAge = (playerDeadAge < wardenDeadAge) ? playerDeadAge : wardenDeadAge;
     if (deadAge < 0.6f) {
-        Vector2 at = (playerDeadAge < wardenDeadAge) ? HALBERD_POS : WARDEN_POS;
         float k = deadAge / 0.6f;
-        DrawGlow(at, 60 + 200 * k, Col(0xFFE6B4FF, 0.8f * (1 - k)));
+        DrawGlow(burstAt, 60 + 200 * k, Col(0xFFE6B4FF, 0.8f * (1 - k)));
     }
 }
 
@@ -636,9 +697,9 @@ void DrawBattle() {
     }
     BeginMode2D(camera);
 
-    DrawBackLayers(now, settings.reduceMotion);
+    DrawBackLayers(now, settings.reduceMotion, BATTLE_STAR_SPEED);
     DrawPlanet({ 10, 740 }, 310, now, settings.reduceMotion);
-    DrawFrontLayers(now, settings.reduceMotion);
+    DrawFrontLayers(now, settings.reduceMotion, BATTLE_STAR_SPEED);
     float wash = motion ? 1.0f - 0.65f * Pulse(now, 0.9f) : 0.7f;
     DrawAlertWash(alertLevel * wash);
     DrawHazardTape(0, 8, hot, 0.9f, now, motion);
@@ -649,12 +710,13 @@ void DrawBattle() {
 
     DrawShipWithEffects(false, now);
     DrawShipWithEffects(true, now);
+    Vector2 warden = ShipPos(true, now);
     // Red lock-on brackets around the Warden while it is the player's move.
     if (phase == Phase::AwaitingOrders && !IsBusy() && !confirmOpen)
-        DrawLockOn({ 920, 250, 180, 160 }, now, motion);
-    DrawBeam(playerBeamAge, false);
-    DrawBeam(wardenBeamAge, true);
-    DrawFloats();
+        DrawLockOn({ warden.x - 90, warden.y - 80, 180, 160 }, now, motion);
+    DrawBeam(playerBeamAge, false, now);
+    DrawBeam(wardenBeamAge, true, now);
+    DrawFloats(now);
     DrawParticles();
 
     DrawPanel({ 24, 540, 800, 156 }, nullptr, nullptr);

@@ -103,10 +103,11 @@ The approved look is in `docs/design/*.png`: title, battle, howto, settings, vic
   1. **Battle logic (the only test seam).** Has no raylib include. It holds a `Battle` struct (hulls, engagement number, player shields flag, enemy shields flag, result, stats) and two functions: one applies a player command, and one runs the enemy's move. Each returns a short list of **events** (for example *fired 18*, *was shielded*, *repaired +5*, *enemy raised shields*, *victory*) that the presentation turns into animations, sounds and feed lines. Randomness comes from a small `Rng` struct passed in, seedable, so tests are deterministic. Its range helper reproduces `rand() % 16 + 10` style rolls.
   2. **Screens:** an enum state machine with Title, HowTo, Settings, Battle, Victory and Defeat. Retreat confirmation is an overlay inside Battle. Each screen has an update function and a draw function.
   3. **Turn sequencer:** a small timed queue inside Battle that plays the logic's events with the approved timing:
-     - Player shot lands 0.26 s after the click.
-     - "Hostile targeting" starts at 0.65 s.
-     - The enemy acts at 1.35 s, and its shot lands 0.28 s later.
-     - The round ends and buttons unlock 0.75 s after that.
+     - Player shot lands 0.13 s after the click.
+     - "Hostile targeting" starts at 0.45 s.
+     - The enemy acts at 0.95 s, and its shot lands 0.14 s later.
+     - The round ends and buttons unlock 0.6 s after that.
+     - Beams cross the gap in 0.1 s, then fade over 0.2 s.
      - The result screen follows about 0.7 s after a ship reaches 0.
   4. **UI kit:** drawing helpers shared by all screens:
      - Panels: a cut-corner (chamfer) panel with gradient border and header strip.
@@ -153,7 +154,7 @@ The approved look is in `docs/design/*.png`: title, battle, howto, settings, vic
   - Web packaging: assets are preloaded into the Emscripten virtual file system (`--preload-file`).
 - **Web output:** a `web/` folder holding the `index.html` from a minimal custom Emscripten shell (dark background, centered canvas, no Emscripten logo or console), plus the `.js`, `.wasm` and `.data` files. The built output is committed so Live Server works with no toolchain.
 - **Input:** mouse, touch (raylib maps a tap to a mouse press) and keyboard shortcuts. On Title: Enter, H and S. In Battle: 1, 2, 3, 4. On How to Play and Settings: Esc goes back. On result screens: R plays again, M goes to the menu.
-- **Reduce motion setting:** turns off screen shake, glitch, CRT sweep and parallax drift. Damage feedback switches to flashes only.
+- **Reduce motion setting:** turns off screen shake, glitch, CRT sweep and parallax drift. Damage feedback switches to flashes only. Ships keep only a gentle bob (no drift, lunge or recoil).
 
 ## Testing Decisions
 
@@ -186,6 +187,8 @@ The approved look is in `docs/design/*.png`: title, battle, howto, settings, vic
 - **Loading the web build:** browsers block WebAssembly from `file://`, so the web build has to be served (Live Server or GitHub Pages). Put that in the README.
 - **Credits:** list them on the How to Play screen or in the README: Kenney (CC0), Rajdhani and Share Tech Mono (OFL), and the music source.
 - **Decisions made while building:**
+  - The professor's review asked for more ship movement and faster shots, so the turn timings were shortened and ships now move (see Ship motion).
+  - Ship motion: each ship drifts in a slow figure-eight (about 52 px tall, 36 px wide), with different periods (6.0 s and 7.4 s) so they never move in sync, and a slight tilt (about 5 degrees) that follows the up and down motion. A ship lunges about 26 px toward the enemy when it fires and eases back, and is pushed about 18 px away from the attacker when hit. Flames, glows, shields, beams, floating numbers, lock-on brackets and sparks all follow the ship's current position. The first version was too subtle, so the motion was made bigger but slower so it glides. On the Battle screen the stars stream about 7x faster than on other screens, and the near stars become short streaks, to give a Galaga-like sense of both ships flying forward; the other screens keep the slow drift, and Reduce motion stops the streaming.
   - Settings has a third row, Reduce motion (ON / OFF), below the two audio rows shown in `docs/design/settings.png`.
   - The debrief header reads "AFTER ACTION" where the mockups said "SAMPLE NUMBERS".
   - In the Retreat dialog, Esc means Stay, and Enter or 4 means Retreat.

@@ -24,11 +24,16 @@ static const StarLayer MID_STARS = { 460, 400, 18, 0.8f, 0.65f, 3,
     { 0.22f, 0.66f, 0.88f }, { 0.40f, 0.12f, 0.78f }, { 0xFFFFFFFF, 0xFFD9A8FF, 0xFFFFFFFF } };
 static const StarLayer NEAR_STARS = { 720, 560, 40, 1.1f, 0.9f, 2,
     { 0.40f, 0.80f }, { 0.30f, 0.70f }, { 0xFFFFFFFF, 0xFFE6C4FF } };
+// Only drawn when the stars stream fast (Battle screen): a few extra stars between MID and NEAR.
+static const StarLayer STREAM_STARS = { 540, 440, 28, 0.95f, 0.75f, 2,
+    { 0.15f, 0.62f }, { 0.55f, 0.22f }, { 0xFFFFFFFF, 0xFFD9A8FF } };
 static const StarLayer DUST = { 220, 200, 0, 0.6f, 0.5f, 3,
     { 0.10f, 0.60f, 0.30f }, { 0.10f, 0.40f, 0.70f }, { 0xFFB347CC, 0xFFB34799, 0xFF783CB3 } };
 
 // Draws a star tile again and again to cover the screen, shifted by (shiftX, shiftY).
-static void DrawStarLayer(const StarLayer& layer, float shiftX, float shiftY) {
+// streak is a tail length in pixels. Stars move left, so the tail trails to the right,
+// which makes fast stars look like short lines instead of dots. 0 means plain dots.
+static void DrawStarLayer(const StarLayer& layer, float shiftX, float shiftY, float streak = 0) {
     float ox = fmodf(shiftX, layer.tileW);
     float oy = fmodf(shiftY, layer.tileH);
     if (ox > 0) ox -= layer.tileW;
@@ -37,13 +42,16 @@ static void DrawStarLayer(const StarLayer& layer, float shiftX, float shiftY) {
         for (float ty = oy; ty < VIRTUAL_H; ty += layer.tileH) {
             for (int i = 0; i < layer.count; i++) {
                 Vector2 p = { tx + layer.x[i] * layer.tileW, ty + layer.y[i] * layer.tileH };
-                DrawCircleV(p, layer.radius, Col(layer.color[i], layer.alpha));
+                if (streak > 0)
+                    DrawLineEx(p, { p.x + streak, p.y }, layer.radius * 2, Col(layer.color[i], layer.alpha));
+                else
+                    DrawCircleV(p, layer.radius, Col(layer.color[i], layer.alpha));
             }
         }
     }
 }
 
-void DrawBackLayers(float t, bool reduceMotion) {
+void DrawBackLayers(float t, bool reduceMotion, float speed) {
     float drift = reduceMotion ? 0.0f : t;
     // Nebula: three soft colored glows that slowly "breathe".
     float breathe = reduceMotion ? 0.0f : Pulse(t, 28.0f);
@@ -57,15 +65,23 @@ void DrawBackLayers(float t, bool reduceMotion) {
     FillEllipseGradient(b, 484 * grow, 302 * grow, b, Col(COL_AMBER, 0.13f * fade), Col(COL_AMBER, 0));
     FillEllipseGradient(c, 645 * grow, 242 * grow, c, Col(0x8C2814FF, 0.22f * fade), Col(0x8C2814FF, 0));
 
-    DrawStarLayer(FAR_STARS, -drift * FAR_STARS.speed, 0);
-    DrawStarLayer(MID_STARS, -drift * MID_STARS.speed, 0);
+    // Streaks only when fast and moving, so Reduce motion keeps still dots.
+    bool fast = speed > 1.0f && !reduceMotion;
+    float midStreak = fast ? MID_STARS.speed * speed * STREAK_SECONDS * 0.5f : 0;  // shorter tail: farther away
+    DrawStarLayer(FAR_STARS, -drift * FAR_STARS.speed * speed, 0);
+    DrawStarLayer(MID_STARS, -drift * MID_STARS.speed * speed, 0, midStreak);
 }
 
-void DrawFrontLayers(float t, bool reduceMotion) {
+void DrawFrontLayers(float t, bool reduceMotion, float speed) {
     float drift = reduceMotion ? 0.0f : t;
-    DrawStarLayer(NEAR_STARS, -drift * NEAR_STARS.speed, 0);
-    // Dust drifts down and to the left.
-    DrawStarLayer(DUST, -drift * 36.7f, drift * 33.3f);
+    bool fast = speed > 1.0f && !reduceMotion;
+    if (speed > 1.0f)
+        DrawStarLayer(STREAM_STARS, -drift * STREAM_STARS.speed * speed, 0,
+                      fast ? STREAM_STARS.speed * speed * STREAK_SECONDS : 0);
+    DrawStarLayer(NEAR_STARS, -drift * NEAR_STARS.speed * speed, 0,
+                  fast ? NEAR_STARS.speed * speed * STREAK_SECONDS : 0);
+    // Dust drifts down and to the left (only its leftward speed grows).
+    DrawStarLayer(DUST, -drift * 36.7f * speed, drift * 33.3f);
 }
 
 // ---------- Planet ----------

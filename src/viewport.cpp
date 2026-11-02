@@ -53,7 +53,7 @@ void PresentVirtual() {
 }
 
 Vector2 VirtualMouse() {
-    // On phones the finger position comes from the touch list.
+    // On a touch screen the finger position comes from the touch list.
     Vector2 p = (GetTouchPointCount() > 0) ? GetTouchPosition(0) : GetMousePosition();
     float s = Scale();
     Vector2 o = Offset();

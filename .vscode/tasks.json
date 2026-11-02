@@ -22,14 +22,6 @@
             "problemMatcher": "$gcc"
         },
         {
-            "label": "build-web",
-            "type": "process",
-            "command": "make",
-            "args": ["web"],
-            "group": "build",
-            "problemMatcher": "$gcc"
-        },
-        {
             "label": "test",
             "type": "process",
             "command": "make",

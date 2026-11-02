@@ -101,6 +101,6 @@ const char* const TXT_PLAY_AGAIN = "PLAY AGAIN";
 const char* const TXT_TRY_AGAIN = "TRY AGAIN";
 const char* const TXT_MAIN_MENU = "MAIN MENU";
 
-// ---------- Phone held upright ----------
+// ---------- Window taller than wide ----------
 const char* const TXT_ROTATE = "ROTATE YOUR PHONE";
 const char* const TXT_ROTATE_HINT = "Space Battle plays in landscape";

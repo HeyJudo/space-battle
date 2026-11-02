@@ -10,13 +10,6 @@ out/
 *.exp
 *.dSYM/
 
-# The web build in web/ IS committed on purpose: the client runs it
-# with Live Server without installing Emscripten (see SPEC.md).
-
-# Toolchains installed inside the project
-emsdk/
-.emscripten_cache/
-
 # Editor: keep shared VS Code config, ignore personal settings
 .vscode/*
 !.vscode/tasks.json

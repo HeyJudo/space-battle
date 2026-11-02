@@ -1,13 +1,12 @@
-# Space Battle: all-C++ web game (spec)
+# Space Battle: all-C++ desktop game (spec)
 
 Status: ready-for-agent. Visual direction approved by the client: **Red Alert v2**.
 
 ## Problem Statement
 
-The client has a working console game, `reference/original_main.cpp`: a turn-based duel between your ship and an enemy ship, played by typing 1 to 4 into a terminal. It must be turned into a game people play in a web browser, with a polished, premium interface. Her requirements:
+The client has a working console game, `reference/original_main.cpp`: a turn-based duel between your ship and an enemy ship, played by typing 1 to 4 into a terminal. It must be turned into a game people play in a window, with a polished, premium interface. Her requirements:
 
-- The whole game is written in C++. The only non-C++ file allowed is the small HTML loader that Emscripten generates.
-- It runs as a website (a link), and also works on a phone.
+- The whole game is written in C++, with no HTML, CSS or JavaScript. It runs as a native desktop window, not a website (changed from the first spec, which also had a WebAssembly web build).
 - It is developed in **VS Code**.
 - It stays simple enough for a 1st or 2nd year student to read, explain and present.
 - Her game rules stay exactly as written, plus the rule changes she approved (listed under Game rules).
@@ -16,7 +15,7 @@ The terminal version has no visuals, no sound, and breaks if you type a letter (
 
 ## Solution
 
-A raylib game written in plain C++, compiled to WebAssembly with Emscripten and drawn on one 1280x720 canvas that scales to fit the browser window. Players click (or tap, or press keys) instead of typing. The battle plays out with animations, sound, floating damage numbers and a combat log in a military "red alert" voice. The game goes Title → Battle → Victory or Defeat, with How to Play and Settings reachable from the Title.
+A raylib game written in plain C++, built as a Windows `.exe` and drawn on one 1280x720 canvas that scales to fit the window. Players click (or press keys) instead of typing. The battle plays out with animations, sound, floating damage numbers and a combat log in a military "red alert" voice. The game goes Title → Battle → Victory or Defeat, with How to Play and Settings reachable from the Title.
 
 The approved look is in `docs/design/*.png`: title, battle, howto, settings, victory and defeat. The playable mockups live on the Claude Design canvas "Space Battle UI Concepts", row "Red Alert v2". `docs/design/ra2-reference.css` lists every visual trait as CSS. Treat it as a reference to translate into raylib drawing code, not as code to ship.
 
@@ -78,26 +77,26 @@ The approved look is in `docs/design/*.png`: title, battle, howto, settings, vic
 29. As a player, I want Esc to go back from How to Play and Settings, so that the keyboard works everywhere.
 30. As a player, I want sound effects for fire, hits, shields, repairs, the alarm, buttons, victory and defeat, so that the game feels alive.
 31. As a player, I want low background music I can turn off, so that it sets the mood without annoying me.
-32. As a player, I want sound to start after my first click, so that the browser does not block it and nothing blasts on load.
-33. As a phone player, I want the game to scale to my screen and respond to taps, so that I can play on mobile.
-34. As a phone player holding the phone upright, I want a "rotate your phone" hint, so that I get the full landscape view.
+32. As a player, I want sound to start after my first click, so that nothing blasts on launch.
+33. As a player, I want the game to scale to any window size, so that I can resize or maximize it.
+34. As a player whose window is taller than it is wide, I want a "rotate" hint, so that I get the full landscape view.
 35. As a player, I want animations to stay smooth (60 fps), so that the game feels polished.
 36. As a player who prefers less motion, I want a "Reduce motion" option in Settings that stops shakes and flicker, so that I can play comfortably.
 37. As the client, I want the rules to match my original code plus the approved changes exactly, so that the game is still my game.
 38. As the client, I want the code split into a few small, clearly named files with comments, so that I can explain it in class.
 39. As the client, I want the game logic separate from the drawing code, so that I can show where my original rules live.
-40. As the client, I want the built website files already included, so that I can run it in VS Code with Live Server without installing compilers.
-41. As the client, I want one VS Code task to rebuild the web version, so that I can change the C++ and see the result.
-42. As the client, I want a desktop build of the same code, so that I can test quickly and show it offline if the internet fails.
-43. As the client, I want a README that explains how to run, build and host it (for example on GitHub Pages), so that I can submit a link.
+40. As the client, I want a ready-built `.exe`, so that I can run the game without installing compilers.
+41. As the client, I want one VS Code task to rebuild and run the game, so that I can change the C++ and see the result.
+42. (Removed: the desktop build is now the only build.)
+43. As the client, I want a README that explains how to run and build it.
 44. As the client, I want the tests for the rules to run with one command, so that I can prove the logic is correct.
 45. As the client, I want every asset to be free to use (CC0 or OFL) with credits listed, so that my submission is safe.
 
 ## Implementation Decisions
 
-- **Stack:** C++17 and raylib 5.x. The web build uses Emscripten (`emcc`) with raylib compiled for `PLATFORM_WEB`, plus a native desktop build of the same source. The editor is VS Code, with tasks for build-web, build-desktop and test.
+- **Stack:** C++17 and raylib 5.x. One native Windows desktop build with g++ (w64devkit) and the raylib MinGW package. The editor is VS Code, with tasks for build-desktop, run-desktop and test.
 - **Code style for 1st/2nd year students:** plain structs, enums and free functions. No inheritance hierarchies, no templates, no smart-pointer gymnastics, and lambdas only where raylib needs them. Every file starts with a short comment saying what it does. Comments explain *why* and any raylib call a beginner would not know.
-- **Main loop:** on the web, `emscripten_set_main_loop` calls one `UpdateDrawFrame` function. Desktop uses the usual `while (!WindowShouldClose())` loop calling the same function.
+- **Main loop:** the usual `while (!WindowShouldClose())` loop calls one `UpdateDrawFrame` function.
 - **Fixed virtual resolution:** draw everything to a 1280x720 `RenderTexture2D`, then scale it to the window with letterboxing. Mouse and touch positions are mapped back into the 1280x720 space. All layout numbers in the design PNGs are in that space.
 - **Modules:**
   1. **Battle logic (the only test seam).** Has no raylib include. It holds a `Battle` struct (hulls, engagement number, player shields flag, enemy shields flag, result, stats) and two functions: one applies a player command, and one runs the enemy's move. Each returns a short list of **events** (for example *fired 18*, *was shielded*, *repaired +5*, *enemy raised shields*, *victory*) that the presentation turns into animations, sounds and feed lines. Randomness comes from a small `Rng` struct passed in, seedable, so tests are deterministic. Its range helper reproduces `rand() % 16 + 10` style rolls.
@@ -118,7 +117,7 @@ The approved look is in `docs/design/*.png`: title, battle, howto, settings, vic
      - Background: three-layer parallax starfield, nebula glow and a planet drawn as a gradient circle with an amber rim.
      - Screen overlays: scanlines plus a slow light sweep, vignette, red alert wash.
      - Ship effects: engine flame flicker, beam, shield bubble, floating numbers, hit shake and flash, explosion, screen shake.
-  6. **Audio:** sound effects and one music stream, with on/off flags from Settings. `InitAudioDevice` runs after the first user input on the web.
+  6. **Audio:** sound effects and one music stream, with on/off flags from Settings. `InitAudioDevice` runs after the first user input.
   7. **Content:** all player-facing strings (the feed lines in the Red Alert voice, button labels, screen text) live in one place, so wording changes in one place.
 - **Feed lines (approved Red Alert voice):**
   - Battle start: "RED ALERT. Hostile Warden closing."
@@ -151,9 +150,8 @@ The approved look is in `docs/design/*.png`: title, battle, howto, settings, vic
   - Sounds: Kenney Sci-Fi Sounds and Interface Sounds, CC0.
   - Music: a CC0 loop. If none fits, a quiet generated drone.
   - Icons: Kenney Game Icons, CC0, or simple line icons drawn with raylib shapes.
-  - Web packaging: assets are preloaded into the Emscripten virtual file system (`--preload-file`).
-- **Web output:** a `web/` folder holding the `index.html` from a minimal custom Emscripten shell (dark background, centered canvas, no Emscripten logo or console), plus the `.js`, `.wasm` and `.data` files. The built output is committed so Live Server works with no toolchain.
-- **Input:** mouse, touch (raylib maps a tap to a mouse press) and keyboard shortcuts. On Title: Enter, H and S. In Battle: 1, 2, 3, 4. On How to Play and Settings: Esc goes back. On result screens: R plays again, M goes to the menu.
+  - Packaging: the game loads `assets/` from the project folder, and finds it one level up when started from `bin/`.
+- **Input:** mouse (touch screens work too, since raylib maps a tap to a mouse press) and keyboard shortcuts. On Title: Enter, H and S. In Battle: 1, 2, 3, 4. On How to Play and Settings: Esc goes back. On result screens: R plays again, M goes to the menu.
 - **Reduce motion setting:** turns off screen shake, glitch, CRT sweep and parallax drift. Damage feedback switches to flashes only. Ships keep only a gentle bob (no drift, lunge or recoil).
 
 ## Testing Decisions
@@ -178,13 +176,12 @@ The approved look is in `docs/design/*.png`: title, battle, howto, settings, vic
 - Multiplayer, accounts, leaderboards, saves between visits, achievements.
 - Difficulty levels or new moves beyond the four commands.
 - Localization (English only).
-- Any HTML/CSS/JavaScript UI. The only web file outside C++ is the generated loader page.
+- Any HTML/CSS/JavaScript, and the web build (removed at the client's request; the game is C++ only).
 
 ## Further Notes
 
 - **Name and characters:** the client confirmed the name **Space Battle**. Ship names Halberd and Warden are placeholders she has seen and did not object to.
 - **Expect a tougher enemy:** with the approved enemy shields, the Warden is noticeably tougher. In random-play simulation the win rate dropped to about 27%. If she asks for an easier game, tune it with constants, not rule changes.
-- **Loading the web build:** browsers block WebAssembly from `file://`, so the web build has to be served (Live Server or GitHub Pages). Put that in the README.
 - **Credits:** list them on the How to Play screen or in the README: Kenney (CC0), Rajdhani and Share Tech Mono (OFL), and the music source.
 - **Decisions made while building:**
   - The professor's review asked for more ship movement and faster shots, so the turn timings were shortened and ships now move (see Ship motion).

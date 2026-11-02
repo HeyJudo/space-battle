@@ -1,6 +1,6 @@
 # Space Battle
 
-A turn-based space duel for a client who is a 1st or 2nd year student. It is all C++, built with raylib, compiled to WebAssembly and played in the browser. She presents and explains this code in class, so **readable beats clever**.
+A turn-based space duel for a client who is a 1st or 2nd year student. It is all C++, built with raylib, and runs as a native Windows desktop app (no web build). She presents and explains this code in class, so **readable beats clever**.
 
 ## Read first
 
@@ -18,17 +18,8 @@ A turn-based space duel for a client who is a 1st or 2nd year student. It is all
 - **Randomness goes through the seedable `Rng`** passed into the logic, so tests stay deterministic.
 - Use the glossary words from `SPEC.md` everywhere, in code and UI: Halberd, Warden, hull, Fire / Shields / Repair / Retreat, engagement, tactical feed, debrief.
 
-## Web build gotchas
-
-- On the web, the frame loop runs through `emscripten_set_main_loop(UpdateDrawFrame, 0, 1)`. Desktop calls the same `UpdateDrawFrame` from a `while (!WindowShouldClose())` loop.
-- Browsers only allow audio after a user gesture, so call `InitAudioDevice` on the first click or key press.
-- Assets reach the web build through `--preload-file assets`, so load them by paths relative to `assets/`.
-- WebAssembly only loads over http. Test the web build with VS Code Live Server, never by opening `index.html` directly.
-- Commit the built `web/` output so the client can run the game without installing Emscripten.
-
 ## Done means
 
 - The logic tests pass. They are plain `assert`s in one native test program.
-- The desktop build runs.
-- The web build runs under Live Server, and the screen matches its `docs/design` PNG.
+- The desktop build runs, and the screen matches its `docs/design` PNG.
 - Every asset you add is CC0 or OFL and is credited in the README.

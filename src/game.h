@@ -20,7 +20,7 @@ struct Debrief {
     int wardenHull;
 };
 
-// Shared game state. Settings last until the browser tab is closed.
+// Shared game state. Settings last until the game window is closed.
 extern Settings settings;
 extern Debrief debrief;
 

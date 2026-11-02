@@ -1,6 +1,5 @@
 // assets.h - fonts and pictures, loaded once when the game starts.
-// Paths are relative to the assets/ folder, which the web build packs inside
-// index.data and the desktop build reads from the project folder.
+// Paths are relative to the assets/ folder in the project folder.
 #pragma once
 #include "raylib.h"
 

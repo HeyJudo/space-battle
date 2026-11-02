@@ -1,6 +1,6 @@
 // audio.h - sound effects and background music.
-// Browsers block sound until the player clicks or presses a key, so the
-// audio device only starts on the first input (see main.cpp).
+// Sound only starts on the first click or key press (see main.cpp), so
+// nothing blasts the moment the window opens.
 #pragma once
 
 enum class Sfx { Click, Laser, EnemyLaser, Hit, Deflect, Shield, Repair, Alarm, Explosion, Victory, Defeat, COUNT };

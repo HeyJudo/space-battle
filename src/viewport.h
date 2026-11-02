@@ -18,5 +18,5 @@ void PresentVirtual();
 // The mouse (or finger) position in 1280x720 space.
 Vector2 VirtualMouse();
 
-// True while a phone is held upright (taller than wide).
+// True while the window is taller than it is wide.
 bool IsPortrait();

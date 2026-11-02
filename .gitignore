@@ -1,10 +1,12 @@
 # Native build output (desktop and test builds)
 build/
-bin/
+bin/*
 out/
 *.o
 *.obj
 *.exe
+# The game itself IS committed, so the GitHub "Download ZIP" is ready to play.
+!bin/space-battle.exe
 *.pdb
 *.ilk
 *.exp

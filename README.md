@@ -12,12 +12,14 @@ The approved look is in [`docs/design/`](docs/design/). The rules come from the 
 
 ## Play it
 
-1. Open [Releases](https://github.com/HeyJudo/space-battle/releases) and download **SpaceBattle.zip** from the latest release.
+The built game is included, so one download gives you both the code and the game.
+
+1. On the [GitHub page](https://github.com/HeyJudo/space-battle), click the green **Code** button, then **Download ZIP**.
 2. Right-click the zip, choose **Extract All**, then **Extract**.
-3. Double-click **space-battle.exe** in the extracted folder. Keep the `assets` folder next to it.
+3. Open the extracted folder, then `bin`, and double-click **space-battle.exe**. It finds the `assets` folder by itself.
 4. If Windows shows "Windows protected your PC", click **More info**, then **Run anyway**. It appears because the game isn't signed.
 
-To build the `.exe` yourself, see [Build it yourself](#build-it-yourself).
+To rebuild the `.exe` after changing the code, see [Build it yourself](#build-it-yourself), then commit the new `bin/space-battle.exe`.
 
 | Where | Keys |
 |---|---|

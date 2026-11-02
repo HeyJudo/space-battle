@@ -1,5 +1,5 @@
 // battle.cpp - the Space Battle rules, ported from reference/original_main.cpp
-// plus the approved changes in SPEC.md (Warden shields, real repair amount,
+// plus the approved changes listed in README.md (Warden shields, real repair amount,
 // Retreat as a result).
 #include "battle.h"
 #include "constants.h"

@@ -8,8 +8,6 @@ The approved look is in [`docs/design/`](docs/design/). The rules come from the 
 - Repair shows the hull you actually gained.
 - Retreat asks before you leave.
 
-[`SPEC.md`](SPEC.md) has every rule, timing and text line.
-
 ## Play it
 
 The built game is included, so one download gives you both the code and the game.

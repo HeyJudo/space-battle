@@ -12,7 +12,7 @@ const int REPAIR_MIN = 15;    // Repair: rand() % 16 + 15
 const int REPAIR_MAX = 30;
 const int LOW_HULL = 30;      // the hull bar blinks at or below this
 
-// ---------- Turn timing in seconds (approved in SPEC.md) ----------
+// ---------- Turn timing in seconds (approved by the client) ----------
 const float T_PLAYER_SHOT_LANDS = 0.13f;  // after the click
 const float T_HOSTILE_TARGETING = 0.45f;  // after the click
 const float T_WARDEN_ACTS = 0.95f;        // after the click

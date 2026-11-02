@@ -1,4 +1,4 @@
-// test_battle.cpp - checks every rule in SPEC.md "Game rules" with plain asserts.
+// test_battle.cpp - checks every game rule with plain asserts.
 // Run it with the VS Code "test" task (or: make test). If a rule breaks,
 // assert stops the program and prints the file and line of the failed check.
 #include <cassert>

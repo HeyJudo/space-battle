@@ -30,3 +30,8 @@ desktop.ini
 
 # Logs
 *.log
+
+# Private notes, kept locally only
+CLAUDE.md
+SPEC.md
+.claude/
